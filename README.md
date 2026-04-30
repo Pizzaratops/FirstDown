@@ -1,3 +1,4 @@
 # FootballPositions
 Football Learning App
-ttps://pizzaratops.github.io/FootballPositions/
+
+https://pizzaratops.github.io/FootballPositions/

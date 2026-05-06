@@ -229,6 +229,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,san
     <button class="tnav" id="tnav-glo" onclick="setTab('glo')">Glossar</button>
     <button class="tnav" id="tnav-learn" onclick="setTab('learn')">🧠 Lernen</button>
     <button class="tnav" id="tnav-matchup" onclick="setTab('matchup')">⚔️ Matchup</button>
+    <button class="tnav" id="tnav-situation" onclick="setTab('situation')">🏟️ Situational</button>
+    <button class="tnav" id="tnav-beater" onclick="setTab('beater')">🎯 Coverage Beater</button>
   </div>
 
   <!-- TAB: POSITIONEN -->
@@ -433,6 +435,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,san
     <div class="matchup-reshuffle">
       <button class="learn-btn secondary" onclick="randomMatchup()" style="margin-top:8px">🎲 Zufälliges Matchup</button>
     </div>
+  </div>
+
+  <!-- TAB: SITUATIONAL FOOTBALL -->
+  <div id="tab-situation" style="display:none">
+    <div style="font-size:13px;color:var(--text2);margin-bottom:1.25rem">Wie verändert sich Football je nach Spielsituation? Taktik, Regeln und Entscheidungen.</div>
+    <div class="group-tabs" id="sit-tabs"></div>
+    <div id="sit-content"></div>
+  </div>
+
+  <!-- TAB: COVERAGE BEATER -->
+  <div id="tab-beater" style="display:none">
+    <div style="font-size:13px;color:var(--text2);margin-bottom:1.25rem">Was schlägt welche Coverage? Wähle eine Defense-Coverage und sieh welche Routen und Konzepte sie schlagen.</div>
+    <div class="group-tabs" id="beater-cov-tabs"></div>
+    <div id="beater-content"></div>
   </div>
 </div>
 <script>
@@ -744,13 +760,15 @@ let SS2={phase:null,group:null,schKey:null};
 let ANS={};
 
 function setTab(t){
-  ['pos','sch','glo','learn','matchup'].forEach(n=>{
+  ['pos','sch','glo','learn','matchup','situation','beater'].forEach(n=>{
     document.getElementById('tab-'+n).style.display=n===t?'block':'none';
     document.getElementById('tnav-'+n).className='tnav'+(n===t?' active':'');
   });
   if(t==='glo') renderGlossar();
   if(t==='learn') renderLearnTab();
   if(t==='matchup') renderMatchup();
+  if(t==='situation') renderSituationTab();
+  if(t==='beater') renderBeaterTab();
 }
 
 /* ═══════════════════════════════
@@ -1454,6 +1472,465 @@ document.addEventListener('DOMContentLoaded',()=>{
   showPosScreen('phase');
   setTab('pos');
 });
+/* ═══════════════════════════════════════════════════
+   SITUATIONAL FOOTBALL DATA
+═══════════════════════════════════════════════════ */
+const SITUATION_DATA={
+  "redzone":{
+    label:"🔴 Red Zone",
+    subtitle:"Unter 20 Yards bis zur Endzone",
+    description:"Wenn die Offense die 20-Yard-Linie überquert, ändert sich alles. Das Feld wird enger, Defenses verdichten sich, und jeder Snap zählt doppelt.",
+    rules:[
+      {icon:"📏",title:"Das Feld schrumpft",body:"In der Red Zone haben Wide Receiver weniger Raum für ihre Routen. Der Endbereich beginnt direkt hinter der Endzone-Linie – tief laufende Routen werden abgeschnitten. Statt 50 Yards haben Receiver nur noch 10–15 zum Spielen."},
+      {icon:"🛡️",title:"Defense verdichtet sich",body:"Defenses spielen kompaktere Zones und aggressivere Man Coverage. Die meisten Teams wechseln zu Cover 0 oder Cover 1 in der Red Zone – kein Safety hilft tief, weil es kein Tieffeld gibt."},
+      {icon:"🏈",title:"Tight Ends dominieren",body:"Weil lange Routen nicht funktionieren, werden Tight Ends zentral. Sie arbeiten im kurzen Bereich, sind schwer zu decken und können im Gedränge Catches machen. Red-Zone-TE-Touchdowns sind kein Zufall."},
+      {icon:"💪",title:"Run Game wird wertvoller",body:"Mit weniger Raum für Pässe gewinnt das Run Game an Gewicht. Goal Line Situations bei 1st and Goal unter 3 Yards: viele Teams wechseln zu 21 oder 22 Personnel für pure Run-Power."},
+      {icon:"📊",title:"Down und Distance verändern alles",body:"1st and Goal vs. 4th and Goal sind zwei komplett verschiedene Situationen. Bei 1st and 10 kann man ruhig vorgehen. Bei 4th and 1 muss die Offense in einer einzigen Entscheidung alles geben oder auf 3 Punkte verzichten."}
+    ],
+    tactics:[
+      {title:"End Zone Fades",desc:"Langer Pass in die Ecke der Endzone. WR und CB kämpfen um den Ball. Der WR nutzt seine Körpergröße um den CB auszusperren (Back Shoulder Fade). Funktioniert wegen der Endzone-Grenze besonders gut."},
+      {title:"Crossing Routes im Gedränge",desc:"Mit weniger Raum entstehen mehr Kreuzungen. Ein Receiver läuft eine Route über die Mitte, ein anderer von der anderen Seite – sie kreuzen und einer wird frei. In Man Coverage besonders effektiv."},
+      {title:"Power Run (21/22 Personnel)",desc:"Mit Fullback als Lead Blocker. Je näher an der Goalline, desto mehr Teams setzen auf rohe Kraft. Goal Line Dives mit 22 Personnel können kaum gestoppt werden wenn die O-Line dominiert."},
+      {title:"QB Sneak",desc:"Der effektivste 4th-and-1-Play in der NFL. QB schnellt direkt hinter dem Center durch den A-Gap. Bei 4th and inches fast unaufhaltbar wenn der Center und beide Guards dominant sind."},
+      {title:"Motion und Pre-Snap",desc:"Red Zone Defenses sind oft sehr statisch. Ein Receiver in Bewegung vor dem Snap (Motion) kann die Coverage aufdecken: folgt ein Verteidiger mit? Dann Man Coverage. Reagiert keiner? Zone."}
+    ],
+    quiz:[
+      {q:"Warum dominieren Tight Ends in der Red Zone?",opts:["Weil sie am schnellsten sind","Weil das Feld eng wird und kurze Routen wichtiger als tiefe werden","Weil die Regeln sich ändern"],correct:1,tip:"Mit weniger Platz sind lange Routen abgeschnitten. TEs im kurzen Bereich sind kaum zu decken."},
+      {q:"Was passiert mit der Defense in der Red Zone?",opts:["Sie spielt mehr Zone Coverage","Sie wird aggressiver: Cover 0 und Cover 1 dominieren weil es kein Tieffeld gibt","Sie setzt mehr Linebackers ein"],correct:1,tip:"Ohne Tieffeld macht Cover 2 oder Cover 3 wenig Sinn. Defenses verdichten sich und spielen man-to-man."},
+      {q:"Was ist ein QB Sneak?",opts:["QB wirft in die Endzone","QB läuft mit dem Ball direkt durch den A-Gap hinter dem Center","QB passt dem Fullback"],correct:1,tip:"Der QB Sneak ist der effektivste 4th-and-1-Play. Extrem kurze Distanz, maximale Blocking-Konzentration."}
+    ],
+    field:{
+      desc:"Red Zone: Nur noch 20 Yards bis zur Endzone. Die Defense verdichtet sich.",
+      zones:[
+        {label:"End Zone",x:.50,y:.10,w:.90,h:.16,c:"#1D9E75",op:.18},
+        {label:"Tight Coverage",x:.50,y:.38,w:.80,h:.35,c:"#D83A3A",op:.08},
+        {label:"Fade-Ecken",x:.10,y:.12,w:.16,h:.25,c:"#C83803",op:.12},
+        {label:"Fade-Ecken",x:.90,y:.12,w:.16,h:.25,c:"#C83803",op:.12}
+      ],
+      players:[
+        {x:.50,y:.60,c:"#F0A500",l:"QB"},{x:.50,y:.72,c:"#888",l:"RB"},
+        {x:.36,y:.56,c:"#888",l:"LT"},{x:.42,y:.56,c:"#888",l:"LG"},{x:.50,y:.56,c:"#888",l:"C"},{x:.58,y:.56,c:"#888",l:"RG"},{x:.64,y:.56,c:"#888",l:"RT"},
+        {x:.74,y:.55,c:"#5DCAA5",l:"TE"},{x:.14,y:.55,c:"#C83803",l:"WR"},{x:.86,y:.55,c:"#C83803",l:"WR"},
+        {x:.30,y:.42,c:"#D83A3A",l:"DE"},{x:.42,y:.42,c:"#D83A3A",l:"DT"},{x:.58,y:.42,c:"#D83A3A",l:"DT"},{x:.70,y:.42,c:"#D83A3A",l:"DE"},
+        {x:.24,y:.30,c:"#E8933A",l:"OLB"},{x:.50,y:.29,c:"#E8933A",l:"MLB"},{x:.76,y:.30,c:"#E8933A",l:"OLB"},
+        {x:.14,y:.20,c:"#9B59B6",l:"CB"},{x:.86,y:.20,c:"#9B59B6",l:"CB"},{x:.50,y:.15,c:"#9B59B6",l:"SS"}
+      ]
+    }
+  },
+  "twominute":{
+    label:"⏱️ 2-Minute Drill",
+    subtitle:"Hurry-Up Offense am Ende der Halbzeit",
+    description:"Die letzten zwei Minuten einer Halbzeit oder eines Spiels verwandeln Football. Der Uhrenmanagement-Meister hat einen strukturellen Vorteil.",
+    rules:[
+      {icon:"⏰",title:"Clockmanagement als Waffe",body:"Die Uhr läuft nach einem Incomplete Pass nicht – das ist das zentrale Prinzip der 2-Minute Offense. Teams werfen lieber kurz und unvollständig als lang und riskant. Jeder Sack ohne Timeout kostet 40+ Sekunden."},
+      {icon:"⏸️",title:"Timeouts sind Gold",body:"Jedes Timeout ist 40–45 Sekunden wert. Teams mit 3 Timeouts haben einen massiven Vorteil. Die Frage ist nicht ob man sie nutzt, sondern wann – frühzeitig für ein Field Goal oder spät für die finale Drive?"},
+      {icon:"🏃",title:"Hurry-Up Offense",body:"Die Offense geht direkt nach dem Tackle zur Linie ohne Huddle. Kein Spielzug wird im Kreis besprochen. Der QB ruft die Formation aus. Der Vorteil: Defense kann nicht substituieren und ist erschöpft."},
+      {icon:"📵",title:"No-Huddle Stress für Defense",body:"Wenn die Offense kein Huddle macht, kann die Defense keine frischen Spieler einwechseln. Defensive Linemen die erschöpft sind, bleiben auf dem Feld. Das erzeugt schwächeren Pass Rush."},
+      {icon:"🎯",title:"Sideline Routes dominieren",body:"In der 2-Minute Drill gehen alle Routen zur Sideline. Warum? Weil ein Out Route Catch direkt zu einem Out-of-Bounds führt und die Uhr stoppt. Crossing Routes mitten auf dem Feld lassen die Uhr weiterlaufen."}
+    ],
+    tactics:[
+      {title:"Spike Play",desc:"QB wirft den Ball sofort nach dem Snap absichtlich in den Boden. Kein Gain, aber die Uhr stoppt sofort. Kostet 1 Down. Genutzt wenn keine Timeouts mehr vorhanden und der Kicker noch auf Entfernung braucht."},
+      {title:"Sideline-Hitches und Out Routes",desc:"Kurze Out Routes die den Receiver direkt zur Sideline führen. Catch = Uhr stoppt. Kein Risiko durch lange Pässe. Teams bauen ganze 2-Minute Playbooks aus diesen Routen."},
+      {title:"Checkdown Management",desc:"Wenn kein Sideline-Receiver frei ist, kann der QB zum RB im Feld checken. Aber: RB läuft dann so schnell wie möglich out of bounds statt mehr Yards zu suchen."},
+      {title:"Field Goal Range Management",desc:"Alles dreht sich um: ist man in Field Goal Range? In der NFL unter 53 Yards (ca. 35 Yard FG). Das Ziel ist nicht der Touchdown – zuerst ist es Field Goal Range."},
+      {title:"Defense 2-Minute Rules",desc:"Defense versucht die Uhr laufen zu lassen: Tackles infield (kein OOB), keine Penalties (kostet Uhr), evtl. absichtliches Fallen lassen statt Out of Bounds. Prevent Defense schützt vor dem TD, gibt aber kurze Pässe frei."}
+    ],
+    quiz:[
+      {q:"Warum werfen Teams in der 2-Minute Drill zur Sideline?",opts:["Weil es einfacher ist","Weil der Receiver out of bounds geht und die Uhr stoppt","Weil die Defense dort schwächer ist"],correct:1,tip:"Sideline-Catch = Uhr stoppt automatisch. Mitten auf dem Feld läuft die Uhr weiter."},
+      {q:"Was ist ein Spike Play?",opts:["Ein langer Pass in die Endzone","QB wirft den Ball absichtlich in den Boden um die Uhr zu stoppen","Ein besonderer Kickoff"],correct:1,tip:"Spike kostet 1 Down, stoppt aber die Uhr sofort wenn keine Timeouts mehr da sind."},
+      {q:"Warum ist No-Huddle so effektiv?",opts:["Es verwirrt den QB","Defensive Spieler können nicht substituiert werden und sind erschöpft","Es gibt mehr Zeit für Routen"],correct:1,tip:"Ohne Pause muss die Defense mit denselben erschöpften Spielern auf dem Feld bleiben. Das erzeugt schwächeren Pass Rush."}
+    ],
+    field:{
+      desc:"2-Minute Drill: Sideline-Routen stoppen die Uhr. Field Goal Range = Priorität.",
+      zones:[
+        {label:"FG Range (~53 Yards)",x:.50,y:.50,w:.90,h:.04,c:"#F0A500",op:.35},
+        {label:"Sideline-Route Ziel",x:.08,y:.35,w:.12,h:.35,c:"#C83803",op:.15},
+        {label:"Sideline-Route Ziel",x:.92,y:.35,w:.12,h:.35,c:"#C83803",op:.15}
+      ],
+      players:[
+        {x:.50,y:.70,c:"#F0A500",l:"QB"},{x:.50,y:.82,c:"#888",l:"RB"},
+        {x:.36,y:.65,c:"#888",l:"LT"},{x:.42,y:.65,c:"#888",l:"LG"},{x:.50,y:.65,c:"#888",l:"C"},{x:.58,y:.65,c:"#888",l:"RG"},{x:.64,y:.65,c:"#888",l:"RT"},
+        {x:.10,y:.60,c:"#C83803",l:"WR"},{x:.90,y:.60,c:"#C83803",l:"WR"},{x:.22,y:.62,c:"#C83803",l:"SL"},{x:.74,y:.62,c:"#5DCAA5",l:"TE"},
+        {x:.34,y:.50,c:"#D83A3A",l:"DE"},{x:.44,y:.50,c:"#D83A3A",l:"DT"},{x:.56,y:.50,c:"#D83A3A",l:"DT"},{x:.66,y:.50,c:"#D83A3A",l:"DE"},
+        {x:.28,y:.38,c:"#E8933A",l:"OLB"},{x:.50,y:.37,c:"#E8933A",l:"MLB"},{x:.72,y:.38,c:"#E8933A",l:"OLB"},
+        {x:.10,y:.25,c:"#9B59B6",l:"CB"},{x:.90,y:.25,c:"#9B59B6",l:"CB"},{x:.34,y:.20,c:"#9B59B6",l:"FS"},{x:.66,y:.20,c:"#9B59B6",l:"SS"}
+      ]
+    }
+  },
+  "thirddown":{
+    label:"🎯 3rd Down",
+    subtitle:"Der Schicksals-Down",
+    description:"3rd Down ist der wichtigste Down im Football. Offense kämpft für den 1st Down. Defense kämpft für das Punt. Jede Seite kennt was kommt – und muss es trotzdem schlagen.",
+    rules:[
+      {icon:"📐",title:"Distance bestimmt alles",body:"3rd and 1 ist ein anderes Spiel als 3rd and 10. Bei 1 Yard kann man laufen, QB sneak, Power. Bei 10+ Yards muss man passen. Defenses wissen das auch – und stellen sich darauf ein."},
+      {icon:"🏃",title:"3rd and Short (1–3 Yards)",body:"Defense stellt 8–9 Spieler nahe der Linie auf (Stacked Box). Offense nutzt Power, Counter, QB Sneak oder Quick Slant. Run oder kurzer Pass. Der QB liest die Box sofort vor dem Snap."},
+      {icon:"📡",title:"3rd and Medium (4–7 Yards)",body:"Die flexibelste Situation. Offense kann laufen oder passen. QB ist das Herzstück. Defenses spielen oft Nickel oder 3-3-5. Crossing Routes, Curls und Drags dominieren."},
+      {icon:"🚀",title:"3rd and Long (8+ Yards)",body:"Obvious Pass. Defense wechselt zu Dime (6 DBs) oder Nickel. Maximale Coverage. Offense nutzt Shotgun, Empty oder Speed Packages. 3rd and Long Conversion Rate ist die niedrigste im Football."},
+      {icon:"🔄",title:"4th Down als Option",body:"Modernes Football: 4th and 1 in der gegnerischen Hälfte gehen die besten Teams immer für den 1st Down. Analytics zeigen klaren Vorteil. Der Punt ist nicht mehr automatisch."}
+    ],
+    tactics:[
+      {title:"3rd and 1 – Power und QB Sneak",desc:"QB Sneak durch den A-Gap ist die effektivste Konversion in Short Yardage. Stats zeigen ~70% Erfolgsrate. Power mit Fullback als Lead Blocker ist die Alternative. Defense sieht es kommen – muss es trotzdem aufhalten."},
+      {title:"3rd and Medium – Dig Route",desc:"Die Dig Route (In Route auf ~10–15 Yards) ist der klassische 3rd-Down-Konverter. Receiver läuft 10 Yards geradeaus, dreht dann scharf nach innen. Perfektes Timing mit dem QB nötig. Gegen Zone und Man gleich effektiv."},
+      {title:"3rd and Long – Screen Pass",desc:"Gegen aggressiven Pass Rush in 3rd and Long: Screen Pass. QB lässt die Rusher kommen, wirft kurz hinter die Linie zum RB der bereits drei Blocker vor sich hat. Konter gegen Blitz."},
+      {title:"4th Down Decision",desc:"Analytics: Bei 4th and 1 in der gegnerischen Hälfte geht man immer. Bei 4th and 3+ unter dem eigenen 40 puntet man. Der Break-even-Punkt verschiebt sich je nach Score, Zeit und Feldposition."},
+      {title:"MIKE Designation",desc:"Vor jedem Snap ruft der QB den MIKE-Linebacker aus – den Mann von dem aus die Protection gezählt wird. Das ist die Basis des gesamten Pass-Protektions-Plans."}
+    ],
+    quiz:[
+      {q:"Was ist der effektivste Play bei 3rd and 1?",opts:["Deep Bomb in die Endzone","QB Sneak durch den A-Gap (~70% Erfolgsrate)","Screen Pass zum WR"],correct:1,tip:"QB Sneak hat die höchste Konversionsrate aller Short-Yardage-Plays wegen der Blockmasse am Center."},
+      {q:"Was macht 3rd and Long so schwierig für die Offense?",opts:["Es gibt keine Receiver","Defense wechselt zu maximaler Coverage und alle wissen dass gepasst wird","Der QB sieht schlechter"],correct:1,tip:"Obvious Pass = Defense hat maximalen Vorteil. Sie können ihre besten Pass-Coverage-Spieler einsetzen."},
+      {q:"Was ist die MIKE Designation?",opts:["Der beste Receiver","Der Linebacker von dem aus die Pass Protection gezählt wird","Ein spezieller Blitz-Plan"],correct:1,tip:"Der QB ruft den MIKE aus damit die gesamte Offensive Line weiß wie sie zählt und blockt."}
+    ],
+    field:{
+      desc:"3rd and 7: Obvious Pass-Situation. Nickel Defense erwartet.",
+      zones:[
+        {label:"First Down Marker",x:.50,y:.42,w:.90,h:.03,c:"#F0A500",op:.50},
+        {label:"Conversion Zone",x:.50,y:.35,w:.80,h:.16,c:"#F0A500",op:.07}
+      ],
+      players:[
+        {x:.50,y:.70,c:"#F0A500",l:"QB"},{x:.60,y:.70,c:"#888",l:"RB"},
+        {x:.34,y:.64,c:"#888",l:"LT"},{x:.40,y:.64,c:"#888",l:"LG"},{x:.50,y:.64,c:"#888",l:"C"},{x:.60,y:.64,c:"#888",l:"RG"},{x:.66,y:.64,c:"#888",l:"RT"},
+        {x:.78,y:.63,c:"#5DCAA5",l:"TE"},{x:.12,y:.60,c:"#C83803",l:"WR"},{x:.88,y:.60,c:"#C83803",l:"WR"},{x:.24,y:.62,c:"#C83803",l:"SL"},
+        {x:.34,y:.50,c:"#D83A3A",l:"DE"},{x:.44,y:.50,c:"#D83A3A",l:"DT"},{x:.56,y:.50,c:"#D83A3A",l:"DT"},{x:.66,y:.50,c:"#D83A3A",l:"DE"},
+        {x:.28,y:.38,c:"#E8933A",l:"OLB"},{x:.50,y:.37,c:"#E8933A",l:"MLB"},{x:.72,y:.38,c:"#E8933A",l:"OLB"},
+        {x:.10,y:.24,c:"#9B59B6",l:"CB"},{x:.88,y:.24,c:"#9B59B6",l:"CB"},{x:.24,y:.22,c:"#9B59B6",l:"NB"},{x:.40,y:.18,c:"#9B59B6",l:"FS"},{x:.65,y:.18,c:"#9B59B6",l:"SS"}
+      ]
+    }
+  },
+  "fourthdown":{
+    label:"4️⃣ 4th Down",
+    subtitle:"Go for it, Punt oder Field Goal?",
+    description:"Die schwierigste Entscheidung im Football. Analytics haben die Wahrheit verändert: Teams punten zu oft. Aber Kontext ist alles.",
+    rules:[
+      {icon:"📊",title:"Analytics vs. Intuition",body:"Traditionell: Punte auf 4th and 2 auch in der gegnerischen Hälfte. Modern: Bei 4th and 2 unter dem gegnerischen 40 gehen die besten Teams immer für den 1st Down. Expected Points sind klar: Conversion lohnt sich fast immer."},
+      {icon:"🏟️",title:"Feldposition entscheidet",body:"Die Entscheidung hängt von der Feldposition ab. Eigene Hälfte bei 4th and 5+: Punt ist richtig – zu riskant. Gegnerische Hälfte bei 4th and 1–3: Conversion macht Sinn. Unter 20 Yards: Fast immer Field Goal oder Go."},
+      {icon:"🎰",title:"Score und Zeit als Faktor",body:"Bei 10 Punkten hinten in der 4. Quarter: Kein Punt. Bei Gleichstand mit 2 Minuten: Field Goal bevorzugt. Die mathematische Optimum-Entscheidung ändert sich mit jedem Spielstand."},
+      {icon:"🦁",title:"Psychologischer Faktor",body:"4th Down Conversion kann ein Spiel wenden. Das gegnerische Team ist demoralisiert. Das eigene Team bekommt Energie. Analytics erfassen das nicht. Coaches die dies ignorieren, verlieren manchmal trotz richtiger Mathematik."},
+      {icon:"🎯",title:"Fake Punt und Trick Plays",body:"Auf 4th Down sind Fake Punts legal und effektiv. Wenn die Defense nicht aufpasst, kann der Punter direkt laufen oder werfen. Surprise-Element ist der größte Vorteil."}
+    ],
+    tactics:[
+      {title:"Expected Points Kalkulation",desc:"Wenn man auf 4th and 1 an der gegnerischen 40 puntet, bekommt der Gegner den Ball ca. an seiner 10-Yard-Linie zurück: ~0.4 Expected Points für ihn. Wenn man konvertiert: ~4+ Expected Points für die eigene Offense. Der Punt lohnt sich fast nie."},
+      {title:"Field Goal Decision",desc:"Unter 50 Yards: Field Goal Attempt. Über 53 Yards: Nur wenn der Kicker Justin Tucker ist. Bei 4th and 5 unter dem gegnerischen 30: Fast immer Field Goal. Bei 4th and 1: Go for it."},
+      {title:"Fake Punt",desc:"Punter steht im Punt-Set-up, aber statt zu punten läuft er oder wirft kurz. Funktioniert wenn: (a) Defense schläft und keine Hands-Team-Unit aufstellt, (b) die Distanz kurz genug ist für einen sicheren Lauf."},
+      {title:"4th and Goal Entscheidung",desc:"Bei 4th and Goal unter 3 Yards: Power Run (Go for TD). Bei 4th and Goal 4–7 Yards: Field Goal wenn der Score es erlaubt, sonst Go. Bei 4th and Goal 8+ Yards: Fast immer Field Goal."},
+      {title:"Icing the Kicker",desc:"Defense ruft Timeout direkt vor dem Field Goal-Versuch des Gegners. Ziel: Kicker nervös machen. Statistisch kaum Wirkung – aber psychologisch real."}
+    ],
+    quiz:[
+      {q:"Wann sollte ein Team laut Analytics fast immer für den 1st Down gehen?",opts:["4th and 5 in der eigenen Hälfte","4th and 1 in der gegnerischen Hälfte","4th and 10 überall"],correct:1,tip:"Analytics zeigen: 4th and 1 in der gegnerischen Hälfte hat positive Expected Points. Punten ist die schlechtere Option."},
+      {q:"Was ist ein Fake Punt?",opts:["Ein absichtlich kurzer Punt","Punter läuft oder wirft statt zu punten","Ein Punt der vom Wind abgelenkt wird"],correct:1,tip:"Fake Punts überraschen eine Defense die nicht aufpasst. Surprise ist der einzige Vorteil."},
+      {q:"Was ist 'Icing the Kicker'?",opts:["Defense kühlt den Kicker physisch ab","Timeout direkt vor dem Field Goal um den Kicker zu stören","Ein besonderer Kicker-Trick"],correct:1,tip:"Statistisch kaum wirksam. Aber die Logik ist: ein nervöser Kicker macht eher Fehler."}
+    ],
+    field:{
+      desc:"4th and 1 an der gegnerischen 38: Analytics sagen Go for it.",
+      zones:[
+        {label:"First Down Marker",x:.50,y:.50,w:.90,h:.03,c:"#F0A500",op:.55},
+        {label:"FG Range (>53 Yards: riskant)",x:.50,y:.52,w:.90,h:.36,c:"#D83A3A",op:.05},
+        {label:"Sicheres FG (<45 Yards)",x:.50,y:.22,w:.90,h:.38,c:"#5DCAA5",op:.05}
+      ],
+      players:[
+        {x:.50,y:.68,c:"#F0A500",l:"QB"},{x:.50,y:.80,c:"#888",l:"RB"},
+        {x:.34,y:.62,c:"#888",l:"LT"},{x:.40,y:.62,c:"#888",l:"LG"},{x:.50,y:.62,c:"#888",l:"C"},{x:.60,y:.62,c:"#888",l:"RG"},{x:.66,y:.62,c:"#888",l:"RT"},
+        {x:.76,y:.61,c:"#5DCAA5",l:"TE"},{x:.12,y:.58,c:"#C83803",l:"WR"},{x:.88,y:.58,c:"#C83803",l:"WR"},
+        {x:.32,y:.48,c:"#D83A3A",l:"DE"},{x:.42,y:.48,c:"#D83A3A",l:"DT"},{x:.58,y:.48,c:"#D83A3A",l:"DT"},{x:.68,y:.48,c:"#D83A3A",l:"DE"},
+        {x:.26,y:.36,c:"#E8933A",l:"OLB"},{x:.50,y:.35,c:"#E8933A",l:"MLB"},{x:.74,y:.36,c:"#E8933A",l:"OLB"},
+        {x:.12,y:.22,c:"#9B59B6",l:"CB"},{x:.88,y:.22,c:"#9B59B6",l:"CB"},{x:.40,y:.18,c:"#9B59B6",l:"FS"},{x:.64,y:.18,c:"#9B59B6",l:"SS"}
+      ]
+    }
+  },
+  "prevent":{
+    label:"🛡️ Prevent Defense",
+    subtitle:"Führung schützen – aber wie?",
+    description:"Die Prevent Defense soll große Plays verhindern. Sie ist umstritten: Sie verhindert Touchdowns, gibt aber kurze Pässe frei. 'The Prevent Defense only prevents you from winning' – der berühmteste Spruch im Football.",
+    rules:[
+      {icon:"🔒",title:"Ziel: Kein Big Play",body:"Prevent Defense stellt 6–7 Verteidiger in die Tiefe. Kein Receiver soll tief laufen und frei sein. Das Ziel: Die Uhr läuft ab. Touchdowns werden verhindert. Kleine Pässe werden erlaubt."},
+      {icon:"⚠️",title:"Das Prevent-Paradox",body:"Indem man kurze Pässe freigibt, ermöglicht die Prevent Defense schnelles Uhrenmanagement durch Sideline-Routes. Teams haben Drives von 75+ Yards in unter 45 Sekunden gegen Prevent Defense geschafft."},
+      {icon:"📏",title:"Wann ist Prevent sinnvoll?",body:"Bei großem Vorsprung (10+ Punkte) in den letzten 2 Minuten ohne Timeouts für den Gegner: Prevent ist vertretbar. Bei engem Spielstand oder mit Timeouts: Verheerend."},
+      {icon:"🏃",title:"Wann ist es falsch?",body:"'Don't go prevent too early' – bei 7 Punkten Vorsprung mit 4 Minuten: Noch zu früh. Die Gefahr ist real. Normale Defense bis unter 2 Minuten, dann vorsichtig Prevent einsetzen."},
+      {icon:"🎯",title:"Was sie schlägt",body:"Jede Offense mit Uhrenmanagement-Kenntnissen. Systematische Sideline-Routes, Spike Plays, schnelle Out-Routes. Das 2-Minute Drill Playbook ist direkt auf Prevent Defense ausgelegt."}
+    ],
+    tactics:[
+      {title:"Tampa 2 als Kompromiss",desc:"Tampa 2 schützt tief durch den MLB der in die Deep Middle Zone läuft, während beide Safeties weiterhin helfen. Es gibt kurze Pässe frei, schützt aber besser als reine Prevent."},
+      {title:"Dime Package",desc:"6 Defensive Backs statt 4. Maximale Coverage gegen Pass. Gegen Run verwundbar, aber in offensichtlichen Pass-Situationen optimal."},
+      {title:"Soft Zone",desc:"Cornerbacks spielen 8+ Yards Cushion – geben also Platz. Kein Press Coverage. Ziel: kein tiefer Catch hinter den CBs."},
+      {title:"Offsides-Prävention",desc:"In Prevent muss die Defense Disziplin halten. Keine voreiligen Bewegungen. Ein Offsides-Penalty gibt der Offense automatisch 5 Yards."}
+    ],
+    quiz:[
+      {q:"Was ist das Problem der Prevent Defense?",opts:["Sie ist zu aggressiv","Sie gibt kurze Pässe frei und ermöglicht schnelle Drives durch Uhrenmanagement","Sie ist zu komplex für Spieler"],correct:1,tip:"Kurze Pässe + Sideline-Routes = Uhr stoppt nach jedem Catch. Teams können 60+ Yards in 40 Sekunden schaffen."},
+      {q:"Wann ist Prevent Defense am sinnvollsten?",opts:["Bei jedem Spielstand","Bei großem Vorsprung in den letzten 2 Minuten wenn der Gegner keine Timeouts hat","In der ersten Halbzeit"],correct:1,tip:"Ohne Timeouts ist die Uhr die Verbündete der führenden Defense. Prevent macht dann mehr Sinn."}
+    ],
+    field:{
+      desc:"Prevent Defense: 6 Verteidiger tief, kurze Pässe sind frei.",
+      zones:[
+        {label:"Tiefes Feld: Gesperrt",x:.50,y:.12,w:.90,h:.25,c:"#9B59B6",op:.12},
+        {label:"Kurze Routes: Frei",x:.50,y:.50,w:.90,h:.20,c:"#C83803",op:.08}
+      ],
+      players:[
+        {x:.50,y:.75,c:"#F0A500",l:"QB"},{x:.60,y:.75,c:"#888",l:"RB"},
+        {x:.36,y:.70,c:"#888",l:"LT"},{x:.42,y:.70,c:"#888",l:"LG"},{x:.50,y:.70,c:"#888",l:"C"},{x:.60,y:.70,c:"#888",l:"RG"},{x:.66,y:.70,c:"#888",l:"RT"},
+        {x:.12,y:.67,c:"#C83803",l:"WR"},{x:.88,y:.67,c:"#C83803",l:"WR"},{x:.24,y:.68,c:"#C83803",l:"SL"},{x:.78,y:.67,c:"#5DCAA5",l:"TE"},
+        {x:.38,y:.57,c:"#D83A3A",l:"DE"},{x:.50,y:.57,c:"#D83A3A",l:"DT"},{x:.62,y:.57,c:"#D83A3A",l:"DE"},
+        {x:.28,y:.44,c:"#E8933A",l:"OLB"},{x:.50,y:.43,c:"#E8933A",l:"MLB"},{x:.72,y:.44,c:"#E8933A",l:"OLB"},
+        {x:.12,y:.30,c:"#9B59B6",l:"CB"},{x:.88,y:.30,c:"#9B59B6",l:"CB"},{x:.30,y:.17,c:"#9B59B6",l:"FS"},{x:.50,y:.12,c:"#9B59B6",l:"SS"},{x:.70,y:.17,c:"#9B59B6",l:"NB"},{x:.50,y:.22,c:"#9B59B6",l:"S6"}
+      ]
+    }
+  }
+};
+
+/* ═══════════════════════════════════════════
+   COVERAGE BEATER DATA
+═══════════════════════════════════════════ */
+const COVERAGE_BEATERS={
+  "cover0":{
+    name:"Cover 0",
+    summary:"Cover 0 = Man ohne Safety-Hilfe. Maximal-Blitz. Der QB hat keine Zeit. Schlag es mit Speed und Quick Passes.",
+    weakness:"Kein Safety als Hilfe. Ein verlorenes 1-on-1-Duell ist direkt ein Touchdown. Der QB muss sofort entscheiden.",
+    beats:[
+      {name:"Hot Route",abbr:"HOT",color:"#C83803",difficulty:"Einfach",desc:"Wenn der QB den Blitz erkennt, wirft er sofort zum Hot Receiver – dem Receiver der gegen den blitzenden Spieler aligned ist. Quick Hitch oder Quick Slant gegen den nächsten Verteidiger. Timing: Snap → sofort → Wurf. Kein Warten.",
+       fieldDesc:"Hot Route gegen Blitz: Sofort-Wurf zum außen aligned WR der nach dem Snap eine kurze Hitch läuft",
+       zones:[{x:.15,y:.42,w:.25,h:.14,c:"#C83803",l:"Hot Zone",op:.15}],
+       arrows:[{x1:.50,y1:.65,x2:.16,y2:.46,c:"#C83803",l:"Sofort-Wurf"},{x1:.14,y1:.58,x2:.14,y2:.46,c:"#C83803",l:"Hitch"}]},
+      {name:"Rub Route / Pick Route",abbr:"RUB",color:"#5DCAA5",difficulty:"Mittel",desc:"Zwei Receiver laufen Routen die sich kreuzen. In Man Coverage läuft der Verteidiger direkt in den anderen Receiver. Illegale 'Pick Plays' sind technisch verboten, aber Legal wenn kein Kontakt beabsichtigt. Besonders gegen Cover 0 verheerend.",
+       fieldDesc:"Rub Route: WR1 läuft Crossing Route und setzt Pick für WR2 der dahinter frei ist",
+       zones:[{x:.50,y:.32,w:.40,h:.16,c:"#5DCAA5",l:"Kreuzungszone",op:.12}],
+       arrows:[{x1:.22,y1:.58,x2:.52,y2:.38,c:"#5DCAA5",l:"Pick Route"},{x1:.78,y1:.58,x2:.50,y2:.35,c:"#C83803",l:"Free Route"}]},
+      {name:"Jet Sweep / Motion",abbr:"JET",color:"#F0A500",difficulty:"Mittel",desc:"Receiver in voller Bewegung vor dem Snap nimmt den Ball als Handoff oder Direct Snap. In Cover 0 (kein Safety) gibt es niemanden der auf der anderen Seite hilft. Speed in der Bewegung schlägt jeden statischen Verteidiger.",
+       fieldDesc:"Jet Sweep: WR in Bewegung nimmt Handoff und läuft außen, kein Safety hilft",
+       zones:[{x:.10,y:.45,w:.18,h:.25,c:"#F0A500",l:"Jet Zone",op:.12}],
+       arrows:[{x1:.60,y1:.64,x2:.12,y2:.55,c:"#F0A500",l:"Jet Sweep"},{x1:.60,y1:.64,x2:.35,y2:.64,c:"#888",l:"Fake"}]}
+    ]
+  },
+  "cover1":{
+    name:"Cover 1 (Man Free)",
+    summary:"Cover 1 = Man Coverage mit einem freien Safety. Der Safety hilft tief, aber nur auf einer Seite gleichzeitig.",
+    weakness:"Der Free Safety kann nur eine Seite tief absichern. Seam Routes auf der anderen Seite und Pick Plays in der Mitte.",
+    beats:[
+      {name:"Seam Route (Away from Safety)",abbr:"SEAM",color:"#C83803",difficulty:"Mittel",desc:"Der Free Safety steht in der Mitte oder dreht zu einer Seite. Ein Receiver auf der anderen Seite läuft eine Seam Route vertikal durch den Spalt. Kein Safety hilft auf dieser Seite. Nur 1-on-1 gegen den CB.",
+       fieldDesc:"Seam Route auf der Seite weg vom Free Safety. CB alleine, kein Tiefen-Help",
+       zones:[{x:.80,y:.15,w:.30,h:.30,c:"#C83803",l:"Seam Lücke",op:.14}],
+       arrows:[{x1:.88,y1:.58,x2:.88,y2:.12,c:"#C83803",l:"Seam"},{x1:.50,y1:.12,x2:.68,y2:.20,c:"#9B59B6",l:"FS rotiert weg"}]},
+      {name:"Rub / Pick im Slot",abbr:"PICK",color:"#5DCAA5",difficulty:"Mittel",desc:"In Man Coverage folgt jeder Verteidiger seinem Receiver. Wenn zwei Receiver ihre Routen kreuzen, müssen die Verteidiger aneinander vorbei. Enge Rubs im Slot erzeugen freie Receiver besonders gegen Cover 1.",
+       fieldDesc:"Crossing Routes im Slot: Die Verteidiger kollidieren und ein Receiver wird frei",
+       zones:[{x:.45,y:.38,w:.30,h:.20,c:"#5DCAA5",l:"Pick Zone",op:.12}],
+       arrows:[{x1:.30,y1:.58,x2:.55,y2:.38,c:"#5DCAA5",l:"Cross"},{x1:.55,y1:.58,x2:.35,y2:.38,c:"#C83803",l:"Cross back"}]},
+      {name:"Double Move",abbr:"DBL",color:"#F0A500",difficulty:"Schwer",desc:"Receiver täuscht eine kurze Route vor (z.B. Curl nach 7 Yards) und dreht dann sofort auf eine tiefe Route um. In Man Coverage drückt der CB auf die erste Bewegung. Nach dem Double Move ist er abgehängt.",
+       fieldDesc:"Double Move: WR täuscht Curl vor, dreht dann auf Post. CB ist zu nah und abgehängt.",
+       zones:[{x:.30,y:.12,w:.30,h:.22,c:"#F0A500",l:"Post-Route offen",op:.12}],
+       arrows:[{x1:.14,y1:.58,x2:.14,y2:.38,c:"#C83803",l:"Fake Curl"},{x1:.14,y1:.38,x2:.34,y2:.15,c:"#F0A500",l:"Post Route"}]}
+    ]
+  },
+  "cover2":{
+    name:"Cover 2",
+    summary:"Cover 2 = Zwei Safeties teilen die Deep Zone. Cornerbacks spielen flach. Die berühmteste Schwäche: die Seam Route zwischen FS und SS.",
+    weakness:"Die Seam zwischen den beiden Safeties. Corner Routes außen oben. Der QB mit schnellem Release.",
+    beats:[
+      {name:"Seam Route (4 Verticals)",abbr:"VERT",color:"#C83803",difficulty:"Mittel",desc:"Das klassische Cover-2-Killer-Konzept. Vier Receiver laufen vertikal. Die beiden inneren Receiver (TEs oder Slot WRs) laufen durch die Seams zwischen CB und Safety. Die Safeties müssen sich entscheiden – wer deckt welchen? Mindestens einer ist offen.",
+       fieldDesc:"4 Verticals: 2 äußere Go-Routes binden die Safeties, 2 Seam-Routen durch die Lücken",
+       zones:[{x:.34,y:.10,w:.16,h:.45,c:"#C83803",l:"Seam L",op:.14},{x:.66,y:.10,w:.16,h:.45,c:"#C83803",l:"Seam R",op:.14}],
+       arrows:[{x1:.14,y1:.58,x2:.14,y2:.08,c:"#888",l:"Go"},{x1:.88,y1:.58,x2:.88,y2:.08,c:"#888",l:"Go"},{x1:.34,y1:.58,x2:.34,y2:.10,c:"#C83803",l:"Seam"},{x1:.66,y1:.58,x2:.66,y2:.10,c:"#C83803",l:"Seam"}]},
+      {name:"Corner Route",abbr:"COR",color:"#5DCAA5",difficulty:"Mittel",desc:"WR läuft nach 8–10 Yards auf einen scharfen Winkel (45°) Richtung Ecke der Endzone. Der CB spielt flach, der Safety kommt von innen – keiner deckt die Ecke. Besonders effektiv in der Red Zone.",
+       fieldDesc:"Corner Route: CB spielt flach, Safety kommt spät. Die Ecke ist offen.",
+       zones:[{x:.88,y:.10,w:.20,h:.25,c:"#5DCAA5",l:"Corner offen",op:.15}],
+       arrows:[{x1:.88,y1:.58,x2:.88,y2:.35,c:"#888",l:"Stem"},{x1:.88,y1:.35,x2:.96,y2:.12,c:"#5DCAA5",l:"Corner"}]},
+      {name:"High-Low Concept",abbr:"H-L",color:"#F0A500",difficulty:"Mittel",desc:"Zwei Receiver auf derselben Seite: einer tief (Seam/Go), einer kurz (Flat). Der CB muss wählen – geht er tief zum Seam-Receiver, ist der Flat-Receiver offen. Bleibt er flach, ist der tiefe Receiver frei. High-Low zwingt zur falschen Entscheidung.",
+       fieldDesc:"High-Low: Seam Route tief bindet Safety. Flat Route kurz ist offen wenn CB hilft tief.",
+       zones:[{x:.12,y:.40,w:.18,h:.16,c:"#F0A500",l:"Flat offen",op:.15}],
+       arrows:[{x1:.14,y1:.58,x2:.14,y2:.12,c:"#888",l:"Go"},{x1:.26,y1:.58,x2:.10,y2:.45,c:"#F0A500",l:"Flat"},{x1:.22,y1:.12,x2:.14,y2:.24,c:"#9B59B6",l:"Safety dilemma"}]}
+    ]
+  },
+  "cover3":{
+    name:"Cover 3",
+    summary:"Cover 3 = FS tief Mitte, beide CBs tief außen. 4 Underneath-Verteidiger. Stark gegen Deep Ball. Schwach in den Flats und gegen schnelle Crossings.",
+    weakness:"Die kurzen Außenzonen (Flats). Der Bereich zwischen Underneath und Deep. Crossing Routes die mehrere Zones durchqueren.",
+    beats:[
+      {name:"Flood Concept",abbr:"FLD",color:"#C83803",difficulty:"Mittel",desc:"Drei Receiver auf derselben Seite: Deep (Go/Corner), Intermediate (Hook/Curl), Flat (RB oder TE). Die Defense hat auf dieser Seite nur 1–2 Underneath-Verteidiger. Drei Receiver gegen zwei Verteidiger = immer einer frei. QB liest vom Deep zum Flat.",
+       fieldDesc:"Flood: 3 Receiver auf einer Seite überladen die Underneath-Coverage.",
+       zones:[{x:.16,y:.50,w:.26,h:.42,c:"#C83803",l:"Flood Zone",op:.09}],
+       arrows:[{x1:.10,y1:.58,x2:.10,y2:.10,c:"#888",l:"Go"},{x1:.22,y1:.58,x2:.16,y2:.35,c:"#C83803",l:"Curl"},{x1:.34,y1:.58,x2:.10,y2:.70,c:"#C83803",l:"Flat"}]},
+      {name:"Bubble Screen",abbr:"BUB",color:"#5DCAA5",difficulty:"Einfach",desc:"QB wirft sofort nach dem Snap kurz zum Slot Receiver hinter der Linie. In Cover 3 ist der CB tief und der Flat-Verteidiger hat einen weiten Weg. Zwei Blocker des WRs schaffen dem Slot Receiver Platz. Quick-Yardage-Gewinner.",
+       fieldDesc:"Bubble Screen: QB wirft sofort nach Snap, zwei WRs blocken den einzigen Flat-Defender",
+       zones:[{x:.30,y:.55,w:.22,h:.14,c:"#5DCAA5",l:"Screen Zone",op:.14}],
+       arrows:[{x1:.50,y1:.68,x2:.28,y2:.58,c:"#5DCAA5",l:"Quick Screen"},{x1:.14,y1:.58,x2:.22,y2:.62,c:"#888",l:"Block"},{x1:.22,y1:.58,x2:.30,y2:.62,c:"#888",l:"Block"}]},
+      {name:"Crossings & Drags",abbr:"DRG",color:"#F0A500",difficulty:"Einfach",desc:"In Cover 3 bewachen 4 Underneath-Spieler feste Zones. Crossing Routes die von rechts nach links laufen und mehrere Zones durchqueren, schaffen Übergabeprobleme. Wer übernimmt den Receiver? Kurzer Moment der Freiheit = Catch.",
+       fieldDesc:"Drag Route: Receiver läuft horizontal und wird von Zone zu Zone weitergegeben. Lücke bei der Übergabe.",
+       zones:[{x:.50,y:.38,w:.70,h:.14,c:"#F0A500",l:"Drag Route Zone",op:.10}],
+       arrows:[{x1:.10,y1:.58,x2:.80,y2:.38,c:"#F0A500",l:"Drag"},{x1:.88,y1:.58,x2:.60,y2:.35,c:"#C83803",l:"Crossing"}]}
+    ]
+  },
+  "cover4":{
+    name:"Cover 4 (Quarters)",
+    summary:"Cover 4 = 4 Verteidiger teilen das Deep Field. Fast unschlagbar gegen den Deep Ball. Schwach im Intermediate-Bereich zwischen 10–20 Yards.",
+    weakness:"Intermediate Routen zwischen 10 und 20 Yards. Curl-Flat-Kombinationen. Unter den vier tiefen Verteidigern gibt es Lücken.",
+    beats:[
+      {name:"Curl-Flat Kombination",abbr:"CFL",color:"#C83803",difficulty:"Mittel",desc:"Außen-WR läuft einen Curl (kehrt auf ca. 12 Yards um). Daneben läuft ein TE oder RB in den Flat. Der CB in Cover 4 muss wählen: geht er zum Curl oder zum Flat? Wählt er falsch, ist einer frei. In Cover 4 ist der CB oft für beide zuständig – unmöglich.",
+       fieldDesc:"Curl-Flat: CB muss zwischen Curl WR (12 Yards) und Flat Route RB wählen",
+       zones:[{x:.14,y:.40,w:.20,h:.14,c:"#C83803",l:"Curl",op:.14},{x:.08,y:.58,w:.14,h:.12,c:"#F0A500",l:"Flat",op:.14}],
+       arrows:[{x1:.14,y1:.58,x2:.14,y2:.38,c:"#888",l:"Curl"},{x1:.30,y1:.72,x2:.08,y2:.62,c:"#F0A500",l:"Flat"}]},
+      {name:"Smash Concept",abbr:"SMH",color:"#5DCAA5",difficulty:"Mittel",desc:"Außen-WR läuft einen Hitch (kurz, 5 Yards). Slot WR läuft eine Corner Route (tief außen, 15+ Yards). Der CB in Cover 4 übernimmt die Corner Route. Der Safety hilft tief innen. Die Hitch außen ist frei.",
+       fieldDesc:"Smash: Corner Route zieht CB tief. Hitch außen ist ungedeckt.",
+       zones:[{x:.14,y:.44,w:.16,h:.10,c:"#5DCAA5",l:"Hitch offen",op:.15}],
+       arrows:[{x1:.14,y1:.58,x2:.14,y2:.46,c:"#5DCAA5",l:"Hitch (frei)"},{x1:.26,y1:.58,x2:.80,y2:.12,c:"#888",l:"Corner Route"}]},
+      {name:"Drive / Mesh Concept",abbr:"MSH",color:"#F0A500",difficulty:"Einfach",desc:"Zwei Receiver laufen kurze Crossing Routes von beiden Seiten in die Mitte. In Cover 4 ist die Mitte zwischen den tiefen Safeties und den Underneath-Spielern offen. Quick Mesh schafft 5–10 Yards fast immer.",
+       fieldDesc:"Mesh/Drive: Zwei Crossing Routes treffen in der Mitte. Keiner ist primär zuständig.",
+       zones:[{x:.50,y:.44,w:.30,h:.16,c:"#F0A500",l:"Mesh Zone",op:.12}],
+       arrows:[{x1:.14,y1:.58,x2:.60,y2:.44,c:"#F0A500",l:"Drive"},{x1:.88,y1:.58,x2:.38,y2:.42,c:"#C83803",l:"Drive"}]}
+    ]
+  },
+  "cover3blitz":{
+    name:"Cover 3 Blitz (Fire Zone)",
+    summary:"Fire Zone = 5-Mann-Rush mit Cover 3 hinter. 3 Tiefenverteidiger + 3 Underneath. Druck UND Coverage. Schwach gegen Hot Routes und schnelle Schläge.",
+    weakness:"Hot Routes. Quick Screen. Der QB muss schnell und richtig lesen. Jeder blitzende LB hinterlässt eine Zone-Lücke.",
+    beats:[
+      {name:"Hot Route zum Blitz-Gap",abbr:"HOT",color:"#C83803",difficulty:"Einfach",desc:"Jeder zusätzliche Blitzer hinterlässt seinen Zone-Bereich offen. QB erkennt den Blitz pre-snap (Linebacker nicht in Position). Receiver in der Blitz-Zone läuft einen 5-Yard-Hitch oder Slant. Sofort-Wurf nach dem Snap.",
+       fieldDesc:"Fire Zone Blitz: LB blitzt. Sein Zone-Bereich ist sofort offen für den Hot Receiver.",
+       zones:[{x:.28,y:.50,w:.24,h:.18,c:"#C83803",l:"Blitz-Lücke offen",op:.16}],
+       arrows:[{x1:.26,y1:.36,x2:.28,y2:.55,c:"#D83A3A",l:"LB blitzt"},{x1:.50,y1:.68,x2:.26,y2:.54,c:"#C83803",l:"Hot Route"},{x1:.14,y1:.58,x2:.24,y2:.50,c:"#888",l:"Slant"}]},
+      {name:"RB Screen",abbr:"SCR",color:"#5DCAA5",difficulty:"Mittel",desc:"Gegen Fire Zone Blitz mit 5 Rushern ist der RB oft ungedeckt hinter der Linie. QB lässt die Rusher kommen, dreht sich und wirft schnell zum RB. Drei O-Linemen lassen ihre Rusher los und blocken vor dem RB. Konter gegen Blitz.",
+       fieldDesc:"Screen gegen Blitz: 5 Rusher kommen rein. RB ist alleine hinter der Linie mit 3 Blockern davor.",
+       zones:[{x:.60,y:.72,w:.18,h:.14,c:"#5DCAA5",l:"RB frei",op:.14}],
+       arrows:[{x1:.50,y1:.68,x2:.62,y2:.72,c:"#5DCAA5",l:"Screen"},{x1:.42,y1:.62,x2:.42,y2:.48,c:"#888",l:"Fake block→Ahead"}]}
+    ]
+  }
+};
+
+/* ═════════════════════════════════════════
+   SITUATIONAL FOOTBALL RENDER
+═════════════════════════════════════════ */
+let SIT_ACTIVE='redzone';
+let BEATER_ACTIVE='cover2';
+
+function renderSituationTab(){
+  const keys=Object.keys(SITUATION_DATA);
+  document.getElementById('sit-tabs').innerHTML=keys.map(k=>`<button class="gtab${SIT_ACTIVE===k?' active':''}" onclick="setSit('${k}')">${SITUATION_DATA[k].label}</button>`).join('');
+  renderSitContent();
+}
+function setSit(k){SIT_ACTIVE=k;renderSituationTab();}
+
+function renderSitContent(){
+  const d=SITUATION_DATA[SIT_ACTIVE];
+  const W=380,H=230,FX=10,FY=10,FW=W-20,FH=H-20;
+  const scrimY=FY+FH*0.60;
+  let svg=svgDefs()+fieldBase(FX,FY,FW,FH,scrimY);
+  (d.field.zones||[]).forEach(z=>svg+=drawZone(FX,FY,FW,FH,z));
+  (d.field.players||[]).forEach(p=>{
+    const cx=FX+p.x*FW,cy=FY+p.y*FH;
+    svg+=`<circle cx="${cx}" cy="${cy}" r="8" fill="${p.c}" fill-opacity=".85" stroke="rgba(0,0,0,.3)" stroke-width=".5"/>`;
+    svg+=`<text x="${cx}" y="${cy+3}" text-anchor="middle" font-size="7" font-weight="700" fill="#fff" font-family="system-ui">${p.l}</text>`;
+  });
+
+  const rulesH=d.rules.map(r=>`
+    <div style="display:flex;gap:10px;padding:.65rem 0;border-bottom:.5px solid var(--border)">
+      <span style="font-size:20px;flex-shrink:0;line-height:1.4">${r.icon}</span>
+      <div><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">${r.title}</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6">${r.body}</div></div>
+    </div>`).join('');
+
+  const tacticsH=d.tactics.map(t=>`
+    <div style="padding:.65rem 1rem;border-radius:var(--r);border:.5px solid var(--border);background:var(--navy3);margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">${t.title}</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6">${t.desc}</div>
+    </div>`).join('');
+
+  const quizKey=`sit_${SIT_ACTIVE}`;
+  if(!ANS[quizKey])ANS[quizKey]={};
+  const quizH=d.quiz.map((q,qi)=>{
+    const ans=ANS[quizKey][qi];const answered=ans!==undefined;
+    const opts=q.opts.map((o,oi)=>{
+      let cls='opt';
+      if(answered){if(oi===q.correct)cls+=' correct';else if(oi===ans&&oi!==q.correct)cls+=' wrong';else cls+=' reveal';}
+      return`<button class="${cls}" onclick="answerSitQuiz('${quizKey}',${qi},${oi},${q.correct})" ${answered?'disabled':''}><span class="opt-l">${['A','B','C'][oi]}</span>${o}</button>`;
+    }).join('');
+    const fb=answered?`<div class="feedback">💡 ${q.tip}</div>`:'';
+    return`<div class="quiz-q"><div class="quiz-qn">Frage ${qi+1}</div><div class="quiz-qt">${q.q}</div><div class="opts">${opts}</div>${fb}</div>`;
+  }).join('');
+
+  document.getElementById('sit-content').innerHTML=`
+    <div style="margin-bottom:1rem">
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:3px">${d.label}</div>
+      <div style="font-size:13px;color:var(--orange-lt);margin-bottom:.65rem;font-weight:600">${d.subtitle}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:1.25rem">${d.description}</div>
+    </div>
+    <div class="det-top">
+      <div class="field-panel">
+        <div class="field-phead"><span class="field-ptitle">Situation auf dem Feld</span></div>
+        <div class="field-svg-wrap"><svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block">${svg}</svg></div>
+        <div class="field-note">${d.field.desc}</div>
+      </div>
+      <div class="info-panel">
+        <div style="padding:.9rem 1.2rem;border-bottom:.5px solid var(--border);background:var(--navy3)">
+          <div class="lbl">Schlüsselprinzipien</div>
+        </div>
+        <div style="padding:.4rem 1.2rem;flex:1;overflow:auto">${rulesH}</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;margin-bottom:14px">
+      <div class="lbl" style="margin-bottom:.6rem">Taktiken &amp; Konzepte</div>
+      ${tacticsH}
+    </div>
+    <div class="quiz-panel">
+      <div class="quiz-head"><span class="quiz-title">Quiz</span></div>
+      ${quizH}
+    </div>`;
+}
+
+function answerSitQuiz(key,qi,chosen,correct){
+  if(!ANS[key])ANS[key]={};
+  ANS[key][qi]=(chosen===correct);
+  renderSitContent();
+}
+
+/* ═════════════════════════════════════════
+   COVERAGE BEATER RENDER
+═════════════════════════════════════════ */
+function renderBeaterTab(){
+  const keys=Object.keys(COVERAGE_BEATERS);
+  document.getElementById('beater-cov-tabs').innerHTML=keys.map(k=>`<button class="gtab${BEATER_ACTIVE===k?' active':''}" onclick="setBeater('${k}')">${COVERAGE_BEATERS[k].name}</button>`).join('');
+  renderBeaterContent();
+}
+function setBeater(k){BEATER_ACTIVE=k;renderBeaterTab();}
+
+function renderBeaterContent(){
+  const d=COVERAGE_BEATERS[BEATER_ACTIVE];
+  const beatsH=d.beats.map((b,bi)=>{
+    const W=320,H=200,FX=8,FY=8,FW=W-16,FH=H-16,scrimY=FY+FH*0.62;
+    let svg=svgDefs()+fieldBase(FX,FY,FW,FH,scrimY);
+    // Standard players (simplified)
+    const stdOff=[{x:.50,y:.72,c:"#F0A500",l:"QB"},{x:.14,y:.60,c:"#C83803",l:"WR"},{x:.86,y:.60,c:"#C83803",l:"WR"},{x:.30,y:.62,c:"#C83803",l:"SL"},{x:.72,y:.60,c:"#5DCAA5",l:"TE"}];
+    const stdDef=[{x:.30,y:.48,c:"#D83A3A",l:"DE"},{x:.42,y:.48,c:"#D83A3A",l:"DT"},{x:.58,y:.48,c:"#D83A3A",l:"DT"},{x:.70,y:.48,c:"#D83A3A",l:"DE"},{x:.24,y:.36,c:"#E8933A",l:"OLB"},{x:.50,y:.35,c:"#E8933A",l:"MLB"},{x:.76,y:.36,c:"#E8933A",l:"OLB"},{x:.10,y:.22,c:"#9B59B6",l:"CB"},{x:.88,y:.22,c:"#9B59B6",l:"CB"},{x:.50,y:.12,c:"#9B59B6",l:"FS"},{x:.70,y:.18,c:"#9B59B6",l:"SS"}];
+    [...stdOff,...stdDef].forEach(p=>{
+      const cx=FX+p.x*FW,cy=FY+p.y*FH;
+      svg+=`<circle cx="${cx}" cy="${cy}" r="7" fill="${p.c}" fill-opacity=".7" stroke="rgba(0,0,0,.2)" stroke-width=".5"/>`;
+      svg+=`<text x="${cx}" y="${cy+2.5}" text-anchor="middle" font-size="6" font-weight="700" fill="#fff" font-family="system-ui">${p.l}</text>`;
+    });
+    (b.zones||[]).forEach(z=>svg+=drawZone(FX,FY,FW,FH,z));
+    (b.arrows||[]).forEach(a=>svg+=drawArrow(FX,FY,FW,FH,a));
+
+    const diffColor=b.difficulty==='Einfach'?'#5DCAA5':b.difficulty==='Mittel'?'#F0A500':'#F08080';
+    return`<div style="border:.5px solid var(--border);border-radius:var(--rl);background:var(--navy2);overflow:hidden;margin-bottom:12px">
+      <div style="padding:.65rem 1rem;border-bottom:.5px solid var(--border);background:var(--navy3);display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div>
+          <span style="font-size:10px;font-weight:700;color:${b.color};letter-spacing:.07em;text-transform:uppercase">${b.abbr}</span>
+          <span style="font-size:14px;font-weight:700;color:var(--text);margin-left:8px">${b.name}</span>
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.3);color:${diffColor}">${b.difficulty}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:0">
+        <div style="padding:8px;background:var(--navy)"><svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block">${svg}</svg>
+          <div style="font-size:10px;color:var(--text3);padding:4px 4px 0;line-height:1.4">${b.fieldDesc}</div>
+        </div>
+        <div style="padding:.85rem 1rem;font-size:13px;color:var(--text2);line-height:1.65">${b.desc}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('beater-content').innerHTML=`
+    <div style="margin-bottom:1.25rem">
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px">${d.name} schlagen</div>
+      <div style="padding:.75rem 1rem;border-radius:var(--r);background:var(--navy2);border:.5px solid var(--border);font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:.75rem">${d.summary}</div>
+      <div style="padding:.6rem 1rem;border-radius:var(--r);background:var(--red-dim);border:.5px solid rgba(216,58,58,.3);font-size:12px;color:#F08080;line-height:1.6"><strong>Schwachstelle:</strong> ${d.weakness}</div>
+    </div>
+    <div class="lbl" style="margin-bottom:.6rem">Schlagende Konzepte</div>
+    ${beatsH}`;
+}
+
 </script>
 </body>
 </html>
